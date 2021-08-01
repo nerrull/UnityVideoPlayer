@@ -1,26 +1,27 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Video;
 
 public class MainController : MonoBehaviour
 {
 
-    enum VisualMedia
+    public enum VisualMedia
     {
         Image,
         Video
     }
 
-    enum VisualContent
+    public enum VisualContent
     {
         LowBattery,
         Esker
     }
 
 
-    VisualContent currentContent;
-    VisualMedia currentMedia;
-    public VideoPlayerController videoController;
+    public VisualContent currentContent;
+    public VisualMedia currentMedia;
+    public AbstractPlayer videoController;
     public ImageDisplayController imageController;
     public ProjectSettings settings;
 
@@ -29,17 +30,27 @@ public class MainController : MonoBehaviour
     public List<string> EskerVideos;
                              
     bool flipflop = true;
+    bool started = false;
     // Start is called before the first frame update
     void Start()
     {
+        videoController = gameObject.AddComponent<VideoPlayerDynamic>();
         LoadAllImages();
         LoadAllVideo();
-        currentMedia = VisualMedia.Video;
+        currentMedia = VisualMedia.Image;
         currentContent = VisualContent.Esker;
-        GetNextElement();
+    }
+    public void Update()
+    {
+        if (!started)
+        {
+            started = true;
+            GetNextElement();
+
+        }
     }
 
-    
+
     public void Next()
     {
         currentContent = GetNextContentType();
@@ -66,11 +77,10 @@ public class MainController : MonoBehaviour
     {
         if (currentContent == VisualContent.LowBattery)
         {
-
             if (currentMedia == VisualMedia.Video)
             {
                 //hide video component
-               // videoController.Hide();
+                videoController.Hide();
             }
             var image = GetLowBatteryImage();
             imageController.DisplayImage(image);
@@ -90,7 +100,7 @@ public class MainController : MonoBehaviour
             if (currentMedia == VisualMedia.Video && nextMedia == VisualMedia.Image)
             {
                 //hide video
-                //videoController.Hide();
+                videoController.Hide();
                 //choose image
                 var image = GetEskerImage();
                 //display image
@@ -108,11 +118,7 @@ public class MainController : MonoBehaviour
 
                 //show video component
                 videoController.Show();
-                //play video
-                videoController.Play(video);
-                //hide image
-                imageController.Hide();
-
+                videoController.PrepareMedia(video, VideoPreparedCallback);
             }
 
             if (currentMedia == nextMedia)
@@ -187,8 +193,16 @@ public class MainController : MonoBehaviour
     {
         foreach (var video in EskerVideos)
         {
-            videoController.PreloadVideo(video);
+            videoController.PreloadMedia(video);
         }
 
+    }
+
+    void VideoPreparedCallback(VideoPlayer player)
+    {
+        //play video
+        videoController.Play("");
+        //hide image
+        imageController.Hide();
     }
 }

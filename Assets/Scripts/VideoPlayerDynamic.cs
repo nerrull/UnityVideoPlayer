@@ -2,11 +2,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Video;
-public class VideoPlayerController : AbstractPlayer
+
+public class VideoPlayerDynamic : AbstractPlayer
 {
 
-    public VideoPlayer currentVideo;
-    private Dictionary<string, VideoPlayer> videoBank = new Dictionary<string, VideoPlayer>();
+    public VideoPlayer videoPlayer;
     private GameObject gameCamera;
     // Instantiate and set up the videoplayer   
     void Start()
@@ -15,17 +15,10 @@ public class VideoPlayerController : AbstractPlayer
         settings = GetComponent<ProjectSettings>();
         // Will attach a VideoPlayer to the main camera.
         gameCamera = GameObject.Find("Main Camera");
-    }
-    public override void PreloadMedia(string mediaPath)
-    {
-        PreloadVideo(mediaPath);
-    }
-    public void PreloadVideo(string videoPath)
-    {
-        videoPath = videoPath.Replace("Assets/StreamingAssets", Application.streamingAssetsPath);
+
         // VideoPlayer automatically targets the camera backplane when it is added
         // to a camera object, no need to change videoPlayer.targetCamera.
-        var videoPlayer = gameCamera.AddComponent<VideoPlayer>();
+        videoPlayer = gameCamera.GetComponent<VideoPlayer>();
 
         // Play on awake defaults to true. Set it to false to avoid the url set
         // below to auto-start playback since we're in Start().
@@ -36,68 +29,71 @@ public class VideoPlayerController : AbstractPlayer
         videoPlayer.renderMode = UnityEngine.Video.VideoRenderMode.CameraNearPlane;
         videoPlayer.aspectRatio = VideoAspectRatio.FitOutside;
 
-        // Each time we reach the end, we slow down the playback by a factor of 10.
         videoPlayer.loopPointReached += EndReached;
-
-        // Set the video to play. URL supports local absolute or relative paths.
-        // Here, using absolute.
-        videoPlayer.url = videoPath;
-
-
-        // Skip the first 100 frames.
-        // videoPlayer.frame = 100;
-
-        // Restart from beginning when done.
-        videoPlayer.isLooping = false;
-        videoPlayer.Prepare();
-        videoBank.Add(videoPath, videoPlayer);
+        videoPlayer.isLooping = true;
         videoPlayer.enabled = false;
+    }
+
+    public override void PreloadMedia(string mediaPath)
+    {
+
     }
 
     void EndReached(UnityEngine.Video.VideoPlayer vp)
     {
         vp.Stop();
-        vp.enabled = false;
         master.Next();
-
     }
 
-    public override void Play(string videoPath)
+    public override void PrepareMedia(string videoPath, VideoPlayer.EventHandler callback)
     {
-        videoPath = videoPath.Replace("Assets/StreamingAssets", Application.streamingAssetsPath);
-        currentVideo = videoBank[videoPath];
-        currentVideo.enabled = true;
+        if (!videoPlayer.enabled)
+        {
+            videoPlayer.enabled = true;
+        }
+        // Set the video to play. URL supports local absolute or relative paths.
+        // Here, using absolute.
+        videoPlayer.url = videoPath;
+
         // Start playback. This means the VideoPlayer may have to prepare (reserve
         // resources, pre-load a few frames, etc.). To better control the delays
         // associated with this preparation one can use videoPlayer.Prepare() along with
         // its prepareCompleted event.
-        currentVideo.Play();
-
+        videoPlayer.Prepare();
+        videoPlayer.prepareCompleted += callback;
     }
 
+    public override void Play(string videoPath )
+    {
+        videoPlayer.Play();
+    }
     // Update is called once per frame
     void Update()
     {
 
-        if (currentVideo && settings.TestMode && currentVideo.frame > settings.TestModeMaxVideoFrames)
+        if (videoPlayer && settings.TestMode && videoPlayer.frame > settings.TestModeMaxVideoFrames)
         {
-            EndReached(currentVideo);
+            EndReached(videoPlayer);
         }
-        else if (currentVideo && currentVideo.frame >0 && (ulong) currentVideo.frame > (currentVideo.frameCount -30))
+        else if (videoPlayer && videoPlayer.frame > 0 && (ulong)videoPlayer.frame > (videoPlayer.frameCount - 30))
         {
-            EndReached(currentVideo);
+            EndReached(videoPlayer);
         }
 
     }
 
     public override void Hide()
     {
-        //videoPlayer.enabled = false;
+        if (videoPlayer.isPlaying)
+        {
+            videoPlayer.Stop();
+        }
+        videoPlayer.enabled = false;
     }
 
     public override void Show()
     {
-        //videoPlayer.enabled = true;
-    }    
+        videoPlayer.enabled = true;
+    }
 }
 

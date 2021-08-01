@@ -24,7 +24,7 @@ public class ImageDisplayController : MonoBehaviour
         if (show)
         {
             timer -= Time.deltaTime;
-            if (timer <= 0)
+            if (timer <= 0 && master.currentMedia == MainController.VisualMedia.Image)
             {
                 master.Next();
             }
